@@ -12,7 +12,6 @@ use IO::Socket::INET;
 use Socket qw(SOL_SOCKET SO_SNDBUF  IPPROTO_IP IP_TTL);
 
 my $remote = '192.168.1.56';
-$remote = '162.243.157.128';
 my $port = 4242;
 
 my $dataFile='testdata-10M.dat';
