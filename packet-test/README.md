@@ -1,6 +1,6 @@
 
 
-#Perl TCP Transfer Test
+# Perl TCP Transfer Test
 
 Use Perl sockets to send varying size blocks of data via TCP and get timing.
 
@@ -10,7 +10,7 @@ While server.pl and  client.pl use setsockopt() to set the TCP buffer size, ther
 
 The buffer size reported by getsockopt() remains constant regardless of attempts to change it
 
-#Usage
+# Usage
 
 ## Create Test Data
 
@@ -32,7 +32,7 @@ do
 done
 ```
 
-# server.pl
+## server.pl
 
 Set the port with this line near the top of the script
 
@@ -60,7 +60,7 @@ Server is now listening ...
 Initial Buffer size set to: 4096
 ```
 
-# client.pl
+## client.pl
 
 Set the target server and port at the top of the script
 Note: Client and Server cannot run on the same IP address
@@ -139,7 +139,7 @@ Avg milliseconds/MiB: 697.206000000
 Socket closed - accepting new connections
 ```
 
-# packet-test.sh
+## packet-test.sh
 
 This script just runs the client with varying size blocks of data
 
