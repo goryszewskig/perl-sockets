@@ -13,7 +13,7 @@ use warnings;
 use strict;
 use IO::Socket::INET;
 use Socket qw(SOL_SOCKET SO_RCVBUF IPPROTO_IP IP_TTL);
-use Data::Dumper;
+#use Data::Dumper;
 use Time::HiRes qw(gettimeofday tv_interval);
 
 my $port = 4242;
