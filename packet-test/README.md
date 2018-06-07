@@ -80,7 +80,7 @@ Connected to 192.168.0.128 on port 4242
 Output from server:
 
 ```bash
-Connection accepted from c-76-115-6-154.hsd1.or.comcast.net : 4242
+Connection accepted from c-76-115-XXX-XXX.hsd1.or.comcast.net : 4242
 New Desired Buffer Size set to 16384
 
 Receive Buffer is 25165824 bytes
@@ -116,7 +116,7 @@ Connected to 192.168.0.128 on port 4242
 Output from server:
 
 ```bash
-Connection accepted from c-76-115-6-154.hsd1.or.comcast.net : 4242
+Connection accepted from c-76-115-XXX-XXX.hsd1.or.comcast.net : 4242
 New Desired Buffer Size set to 2048
 
 Receive Buffer is 25165824 bytes
