@@ -17,6 +17,7 @@ use Socket qw(SOL_SOCKET SO_RCVBUF IPPROTO_IP IP_TTL);
 use Time::HiRes qw(gettimeofday tv_interval);
 
 my $port = 4242;
+my $reportInterval = 256;  # print '.' every N packets received
 
 # now setting bufsz dynamically via message from the client
 # so this bit is not really necessary - leaving it here for now though
@@ -44,31 +45,16 @@ if ($bufsz > (8 * 2**20) ) {
 	die "bufszs of $bufsz is GT 8M (8388608)\n";
 }
 
-# report on every megabyte sent
-
-my %rptIntervals = ();
-
-foreach my $i ( 1..30 ) {
-	if ($i > 20 ) { $rptIntervals{2**$i} = 1 }
-	else { $rptIntervals{2**$i} = 2**20 / 2**$i}
-}
-
-my $reportInterval = $rptIntervals{$bufsz};
-$reportInterval = 1 unless defined($reportInterval);
-print "Report Interval: $reportInterval\n";
-
-#foreach my $i ( sort { $a <=> $b } keys %rptIntervals ) {
-	#print "$i: $rptIntervals{$i}\n";
-#}
-
-#exit;
- 
 $| = 1; # flush stdout
  
 my $proto = getprotobyname('tcp');    #get the tcp protocol
  
-my $sock = IO::Socket::INET->new(LocalPort => $port, Proto => $proto, Listen  => 1, Reuse => 1)
-         or die "Cannot create socket: $@";
+my $sock = IO::Socket::INET->new(
+	LocalPort => $port, 
+	Proto => $proto, 
+	Listen  => 1, 
+	Reuse => 1
+) or die "Cannot create socket: $@";
 
 $sock->setsockopt(SOL_SOCKET, SO_RCVBUF, $bufsz) or
 	die "setsockopt: $!";
@@ -76,11 +62,10 @@ $sock->setsockopt(SOL_SOCKET, SO_RCVBUF, $bufsz) or
 print "Initial Receive Buffer is ", $sock->getsockopt(SOL_SOCKET, SO_RCVBUF),
 	" bytes\n";
 
- 
-listen($sock , 10);
 print "Server is now listening ...\n";
 print "Initial Buffer size set to: $bufsz\n";
  
+$SIG{INT} = sub { shutdown $sock,2; close($sock); die "\nkilled\n" };
 
 #accept incoming connections and talk to clients
 while(1)
@@ -97,6 +82,9 @@ while(1)
 	# client first sends the bufsz
 	my $newBufSZ = <$client>;
 	print "New Desired Buffer Size set to $newBufSZ\n";
+	# switch to binary mode
+	binmode $client, ':bytes';
+	binmode $sock, ':bytes';
 
 	$sock->setsockopt(SOL_SOCKET, SO_RCVBUF, $newBufSZ) or
 		die "setsockopt: $!";
@@ -105,14 +93,11 @@ while(1)
 		" bytes\n";
 
 	chomp $newBufSZ;
-	$reportInterval = $rptIntervals{$newBufSZ};
-	$reportInterval = 1 unless defined($reportInterval);
-	print "Report Interval: $reportInterval\n";
 	
 	my $line;
 	my $startTime = [gettimeofday];
 	my $t0=[gettimeofday];
-	while(my $r=read $client,$line,$newBufSZ) {
+	while(my $r=sysread($client,$line,$newBufSZ)) {
 
 		#print "Read $r bytes\n";
 		my $t1 = [gettimeofday];
@@ -123,12 +108,14 @@ while(1)
 		$packets++;
 
 		#printf "%4.6f\n", $rcvtim;
-		#print "bytes read: $r\n" unless  $packets%$reportInterval;
 		print '.' unless $packets%$reportInterval;
 
 		# needs to be the last line in the loop`
 		$t0 = [gettimeofday];
 	}
+
+	shutdown $client,2;
+	close $client;
 
 	my $endTime = [gettimeofday];
 	my $totalElapsed = tv_interval $startTime, $endTime;
@@ -143,16 +130,18 @@ while(1)
 
 	printf qq{
 
-Packets Received: %u
-Bytes Received: %u
-Total Elapsed Seconds: %10.6f
+       Packets Received: %u
+         Bytes Received: %u
+        Avg Packet Size: %6.2f
+  Total Elapsed Seconds: %10.6f
 Network Elapsed Seconds: %10.6f
-Average milliseconds: %3.9f
-Avg milliseconds/MiB: %3.9f
+   Average milliseconds: %3.9f
+   Avg milliseconds/MiB: %3.9f
 
 },
 	$packets,
 	$totalBytes,
+	$totalBytes / $packets,
 	$totalElapsed,
 	$sockElapsed,
 	$sockElapsed / $packets  * 1000,
@@ -165,6 +154,8 @@ Avg milliseconds/MiB: %3.9f
 }
  
 #close the socket
+shutdown $sock,2;
 close($sock);
-exit(0); 
+exit;
+
 
