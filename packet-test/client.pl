@@ -11,37 +11,32 @@ use strict;
 use IO::Socket::INET;
 use Time::HiRes qw(usleep);
 use Socket qw(SOL_SOCKET SO_SNDBUF  IPPROTO_IP IP_TTL);
+use Getopt::Long;
 
-#foreach my $arg ( @ARGV ) {
-#print "arg: $arg\n"
-#}
 
-unless ( $ARGV[2] ) {
-	print qq {
+sub usage;
 
-usage:  client.pl address port bufsz latency
-
-latency is optional (specified in milliseconds )
-
-example: ./client.pl 192.168.1.42 1999 524288 24
-
-};
-
-exit 1;
-
-}
-
+my $inducedLatency=0;
+my $port=4242;
+my $bufsz=8192;
 my $dataFile='testdata-100M.dat';
+my ($remoteHost,$localHost) = ('','');
+my $help=undef;
 
-my $remote=$ARGV[0];
-my $port = $ARGV[1];
-my $bufsz=$ARGV[2];
+GetOptions (
+	"remote-host=s" => \$remoteHost,
+	"port=i" => \$port,
+	"local-host=s" => \$localHost,
+	"buffer-size=i" => \$bufsz,
+	"latency=i" => \$inducedLatency,
+	"h|help!" => \$help,
+) or die usage(1);
 
-# specify as milliseconds
-my $inducedLatency= $ARGV[3] ? $ARGV[3] : 0;
+die usage unless $remoteHost;
+die usage unless $localHost;
 
 # minimal sanity check for bufsz
-#
+# should not be necessary since now using Getopt::Long, but leaving it in
 unless ( $bufsz =~ /^[[:digit:]]+$/ ) {
 	die "bufsz of $bufsz is not an integer\n";
 }
@@ -64,7 +59,7 @@ if ($bufsz > (8 * 2**20) ) {
 
 print qq{
 
-       remote host: $remote
+       remote host: $remoteHost
               port: $port
              bufsz: $bufsz
  simulated latency: $inducedLatency
@@ -75,8 +70,12 @@ my $proto = getprotobyname('tcp');    #get the tcp protocol
  
 print "bufsz: $bufsz\n";
 
-my $sock = IO::Socket::INET->new(LocalPort => $port, Proto => $proto, Reuse => 1)
-         or die "Cannot create socket: $@";
+my $sock = IO::Socket::INET->new(
+	LocalHost => $localHost,
+	LocalPort => $port, 
+	Proto => $proto, 
+	Reuse => 1
+) or die "Cannot create socket: $@";
 
 $sock->setsockopt(SOL_SOCKET, SO_SNDBUF, $bufsz) or
    die "setsockopt: $!";
@@ -87,11 +86,11 @@ print " Send Buffer is ", $sock->getsockopt(SOL_SOCKET, SO_SNDBUF),
 $SIG{INT} = sub { shutdown $sock,2; close($sock); die "\nkilled\n" };
 
 # connect to remote server
-my $iaddr = inet_aton($remote) or die "Unable to resolve hostname : $remote";
+my $iaddr = inet_aton($remoteHost) or die "Unable to resolve hostname : $remoteHost";
 my $paddr = sockaddr_in($port, $iaddr);    #socket address structure
  
 connect($sock , $paddr) or die "connect failed : $!";
-print "Connected to $remote on port $port\n";
+print "Connected to $remoteHost on port $port\n";
  
 open my $fh, '<', $dataFile or die "cannot open $dataFile - $!";
 binmode $fh, ':bytes';
@@ -127,4 +126,32 @@ shutdown $sock,2;
 close($sock) or die "cannot close socket - $@\n";
 exit;
 
+
+sub usage {
+
+my $exitVal = shift;
+use File::Basename;
+my $basename = basename($0);
+print qq{
+$basename
+
+usage:  $basename address port bufsz latency
+
+$basename --file <filename> --op-line-len N
+
+  --remote-host  The host were server.pl is running
+  --port         Port number to connect to - default is 4242
+  --local-host   The local IP address to use for the outgoing connection
+                 Used in conjunction with Wondershaper network speeds can be throttled for testing
+  --buffer-size  Size of TCP buffer - default is 8192
+  --latency      Simulate latency in milliseconds - default is 0
+  --h|help       Help
+
+example: $basename --remote-host 192.168.1.42 --localhost 192.168.1.75 --port 1999 --buffer-size 524288 --latency 24
+
+};
+
+exit eval { defined($exitVal) ? $exitVal : 0 };
+
+}
 
