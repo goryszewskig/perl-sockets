@@ -9,17 +9,36 @@
 use warnings;
 use strict;
 use IO::Socket::INET;
+use Time::HiRes qw(usleep);
 use Socket qw(SOL_SOCKET SO_SNDBUF  IPPROTO_IP IP_TTL);
 
-my $remote = '192.168.1.56';
-my $port = 4242;
+#foreach my $arg ( @ARGV ) {
+#print "arg: $arg\n"
+#}
+
+unless ( $ARGV[2] ) {
+	print qq {
+
+usage:  client.pl address port bufsz latency
+
+latency is optional (specified in milliseconds )
+
+example: ./client.pl 192.168.1.42 1999 524288 24
+
+};
+
+exit 1;
+
+}
 
 my $dataFile='testdata-100M.dat';
-#$dataFile='/mnt/zips/moriarty/tmp/big-test-file/testdata-1G.dat';
 
-my $bufsz=$ARGV[0];
+my $remote=$ARGV[0];
+my $port = $ARGV[1];
+my $bufsz=$ARGV[2];
 
-$bufsz = 2048 unless $bufsz;
+# specify as milliseconds
+my $inducedLatency= $ARGV[3] ? $ARGV[3] : 0;
 
 # minimal sanity check for bufsz
 #
@@ -27,20 +46,35 @@ unless ( $bufsz =~ /^[[:digit:]]+$/ ) {
 	die "bufsz of $bufsz is not an integer\n";
 }
 
+unless ( $inducedLatency =~ /^[[:digit:]]+$/ ) {
+	die "Latency of inducedLatencybufsz is not an integer\n";
+}
+
 # bufsz really should be a power of 2
 # $log will be an integer if a power of 2
 my $log = log($bufsz) / log(2);
 unless ( $log =~ /^[[:digit:]]+$/ ) {
-	die "bufsz of $bufsz is not a power of 2\n";
+	warn "bufsz of $bufsz is not a power of 2\n";
 }
 
 # bufsz should be LT 8M
 if ($bufsz > (8 * 2**20) ) {
 	die "bufszs of $bufsz is GT 8M (8388608)\n";
 }
+
+print qq{
+
+       remote host: $remote
+              port: $port
+             bufsz: $bufsz
+ simulated latency: $inducedLatency
+
+};
  
 my $proto = getprotobyname('tcp');    #get the tcp protocol
  
+print "bufsz: $bufsz\n";
+
 my $sock = IO::Socket::INET->new(LocalPort => $port, Proto => $proto, Reuse => 1)
          or die "Cannot create socket: $@";
 
@@ -70,12 +104,20 @@ binmode $sock, ':bytes';
 # use $datasz for debugging
 print "Sending data...\n";
 
+# cli parameter is milliseconds - usleep uses microseconds
+my $microSleep = $inducedLatency * 1000;
+
+print "Simulating Latency at " , $inducedLatency , " milliseconds (", $microSleep , " microseconds)\n" if $microSleep;
+
 while ( my $datasz = sysread($fh,my $data,$bufsz) ) {
 	last unless $datasz > 0;
 	#print "Data Sz: $datasz\n";
 	# syswrite returns bytes written - normally we do not care about this value
 	my $bytesWritten =  syswrite($sock, $data, $bufsz); 
 	#print "Bytes written: $bytesWritten\n";
+	
+	usleep $microSleep if $microSleep;
+	
 }
  
 # Does not work as expected - socket is still open - see Reuse in socket creation

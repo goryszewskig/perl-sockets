@@ -1,14 +1,12 @@
 
-
 # Perl TCP Transfer Test
 
 Use Perl sockets to send varying size blocks of data via TCP and get timing.
 
-Though the scripts to vary the size of the data per send() call, I have not been able to influence the TCP buffer size.
+As see when running client.pl with varying buffer sizes, the buffer size reported by getsockopt() remains constant.
 
-While server.pl and  client.pl use setsockopt() to set the TCP buffer size, there does not seem to be any method that actually works.
+That the buffer size is changing can be seen by comparing the runtimes with varying values for bufsz.
 
-The buffer size reported by getsockopt() remains constant regardless of attempts to change it
 
 # Usage
 
@@ -62,77 +60,53 @@ Initial Buffer size set to: 4096
 
 ## client.pl
 
-Set the target server and port at the top of the script
+Call with remote_host port buffersize and optionally similuated latency
+
 Note: Client and Server cannot run on the same IP address
 
-```perl
-my $remote = 'my.server.org';
-my $port = 4242;
-```
-Then the client can be run with a buffer size:
-
 ```bash
->  ./client.pl 16384
-Send Buffer is 425983 bytes
-Connected to 192.168.0.128 on port 4242
+  timeout 5 ./client.pl 192.168.1.116 4242 524288 44
+
+       remote host: 192.168.1.116
+              port: 4242
+             bufsz: 524288
+ simulated latency: 44
+
+bufsz: 524288
+ Send Buffer is 425984 bytes
+Connected to 192.168.1.116 on port 4242
+Sending data...
+Simulating Latency at 44 milliseconds (44000 microseconds)
+
 ```
 
 Output from server:
 
 ```bash
-Connection accepted from c-76-115-XXX-XXX.hsd1.or.comcast.net : 4242
-New Desired Buffer Size set to 16384
 
-Receive Buffer is 25165824 bytes
-Report Interval: 64
-..........
+Connection accepted from 192.168.1.105 : 4242
+New Desired Buffer Size set to 524288
 
-Start Time: 1528240098.82339
-End Time: 1528240105.84435
-totElapsed: 7.020959
+Receive Buffer is 8388608 bytes
+........
+
+Start Time: 1555354238.54868
+  End Time: 1555354243.5323
+totElapsed: 4.983623
 
 
-Packets Received: 640
-Bytes Received: 10485760
-Total Elapsed Seconds:   7.020959
-Network Elapsed Seconds:   7.000175
-Average milliseconds: 10.937773438
-Avg milliseconds/MiB: 700.017500000
+       Packets Received: 2109
+         Bytes Received: 54525952
+        Avg Packet Size: 25853.94
+  Total Elapsed Seconds:   4.983623
+Network Elapsed Seconds:   4.947538
+   Average milliseconds: 2.345916548
+   Avg milliseconds/MiB: 95.144961538
 
 --------------------------------------------------------------------------------
 
 Socket closed - accepting new connections
-
 ```
-
-The default for client.pl is a 2048 byte buffer size
-
-```bash
->  ./client.pl
-Send Buffer is 425984 bytes
-Connected to 192.168.0.128 on port 4242
-```
-
-Output from server:
-
-```bash
-Connection accepted from c-76-115-XXX-XXX.hsd1.or.comcast.net : 4242
-New Desired Buffer Size set to 2048
-
-Receive Buffer is 25165824 bytes
-Report Interval: 512
-..........
-
-Start Time: 1528240182.93132
-End Time: 1528240189.96185
-totElapsed: 7.030534
-
-Packets Received: 5120
-Bytes Received: 10485760
-Total Elapsed Seconds:   7.030534
-Network Elapsed Seconds:   6.972060
-Average milliseconds: 1.361730469
-Avg milliseconds/MiB: 697.206000000
 
 --------------------------------------------------------------------------------
 
@@ -155,4 +129,201 @@ Send Buffer is 425984 bytes
 Connected to 192.168.157.128 on port 4242
 ...
 ```
+
+# Examples of differing bufsz
+
+Although the client is reporting the same buffersize via getsockopt(), the effects of changing bufsz can be seen in the following example:
+
+
+
+
+```bash
+
+Connection accepted from poirot.jks.com : 4242
+New Desired Buffer Size set to 1024
+
+Receive Buffer is 8388608 bytes
+...
+
+Start Time: 1555354723.95825
+  End Time: 1555354728.93745
+totElapsed: 4.979201
+
+
+       Packets Received: 969
+         Bytes Received: 951296
+        Avg Packet Size: 981.73
+  Total Elapsed Seconds:   4.979201
+Network Elapsed Seconds:   4.971616
+   Average milliseconds: 5.130666667
+   Avg milliseconds/MiB: 5480.015913886
+
+
+--------------------------------------------------------------------------------
+
+Socket closed - accepting new connections
+Connection accepted from poirot.jks.com : 4242
+New Desired Buffer Size set to 2048
+
+Receive Buffer is 8388608 bytes
+...
+
+Start Time: 1555354728.96369
+  End Time: 1555354733.94296
+totElapsed: 4.979274
+
+
+       Packets Received: 917
+         Bytes Received: 1878016
+        Avg Packet Size: 2048.00
+  Total Elapsed Seconds:   4.979274
+Network Elapsed Seconds:   4.967592
+   Average milliseconds: 5.417221374
+   Avg milliseconds/MiB: 2773.617343511
+
+
+--------------------------------------------------------------------------------
+
+Socket closed - accepting new connections
+Connection accepted from poirot.jks.com : 4242
+New Desired Buffer Size set to 4096
+
+Receive Buffer is 8388608 bytes
+...
+
+Start Time: 1555354733.97415
+  End Time: 1555354738.95864
+totElapsed: 4.984485
+
+
+       Packets Received: 962
+         Bytes Received: 3747840
+        Avg Packet Size: 3895.88
+  Total Elapsed Seconds:   4.984485
+Network Elapsed Seconds:   4.967525
+   Average milliseconds: 5.163747401
+   Avg milliseconds/MiB: 1389.821202186
+
+
+--------------------------------------------------------------------------------
+
+Socket closed - accepting new connections
+Connection accepted from poirot.jks.com : 4242
+New Desired Buffer Size set to 8192
+
+Receive Buffer is 8388608 bytes
+.....
+
+Start Time: 1555354738.98301
+  End Time: 1555354743.96274
+totElapsed: 4.979728
+
+
+       Packets Received: 1518
+         Bytes Received: 7454720
+        Avg Packet Size: 4910.88
+  Total Elapsed Seconds:   4.979728
+Network Elapsed Seconds:   4.968118
+   Average milliseconds: 3.272805007
+   Avg milliseconds/MiB: 698.812202198
+
+
+--------------------------------------------------------------------------------
+
+Socket closed - accepting new connections
+Connection accepted from poirot.jks.com : 4242
+New Desired Buffer Size set to 16384
+
+Receive Buffer is 8388608 bytes
+........
+
+Start Time: 1555354743.98124
+  End Time: 1555354748.96547
+totElapsed: 4.984232
+
+
+       Packets Received: 2134
+         Bytes Received: 14483456
+        Avg Packet Size: 6787.00
+  Total Elapsed Seconds:   4.984232
+Network Elapsed Seconds:   4.957092
+   Average milliseconds: 2.322910965
+   Avg milliseconds/MiB: 358.884488688
+
+
+--------------------------------------------------------------------------------
+
+Socket closed - accepting new connections
+Connection accepted from poirot.jks.com : 4242
+New Desired Buffer Size set to 32768
+
+Receive Buffer is 8388608 bytes
+........
+
+Start Time: 1555354748.99094
+  End Time: 1555354753.96978
+totElapsed: 4.978841
+
+
+       Packets Received: 2212
+         Bytes Received: 28278784
+        Avg Packet Size: 12784.26
+  Total Elapsed Seconds:   4.978841
+Network Elapsed Seconds:   4.963040
+   Average milliseconds: 2.243688969
+   Avg milliseconds/MiB: 184.029293163
+
+
+--------------------------------------------------------------------------------
+
+Socket closed - accepting new connections
+Connection accepted from poirot.jks.com : 4242
+New Desired Buffer Size set to 65536
+
+Receive Buffer is 8388608 bytes
+..........
+
+Start Time: 1555354753.99502
+  End Time: 1555354758.97197
+totElapsed: 4.976954
+
+
+       Packets Received: 2757
+         Bytes Received: 56295424
+        Avg Packet Size: 20419.09
+  Total Elapsed Seconds:   4.976954
+Network Elapsed Seconds:   4.961636
+   Average milliseconds: 1.799650345
+   Avg milliseconds/MiB: 92.416968568
+
+
+--------------------------------------------------------------------------------
+
+Socket closed - accepting new connections
+Connection accepted from poirot.jks.com : 4242
+New Desired Buffer Size set to 131072
+
+Receive Buffer is 8388608 bytes
+..................
+
+Start Time: 1555354758.99201
+  End Time: 1555354763.97448
+totElapsed: 4.982475
+
+
+       Packets Received: 4768
+         Bytes Received: 101056512
+        Avg Packet Size: 21194.74
+  Total Elapsed Seconds:   4.982475
+Network Elapsed Seconds:   4.956841
+   Average milliseconds: 1.039605914
+   Avg milliseconds/MiB: 51.432850843
+
+
+--------------------------------------------------------------------------------
+
+Socket closed - accepting new connections
+
+```
+
 

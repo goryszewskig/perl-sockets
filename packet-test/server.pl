@@ -8,7 +8,7 @@
  The buffer size reported by getsockopt() remains constant regardless of attempts to change it
 
 =cut
- 
+
 use warnings;
 use strict;
 use IO::Socket::INET;
@@ -76,8 +76,13 @@ while(1)
  
 	my($clientPort, $iaddr) = sockaddr_in($addrinfo);
 	my $name = gethostbyaddr($iaddr, AF_INET);
- 
-	print "Connection accepted from $name : $clientPort \n";
+
+	if ( defined $name) {
+		print "Connection accepted from $name : $clientPort\n";
+	} else {
+		print "Could not lookup name for port $clientPort\n";
+	}
+
  
 	# client first sends the bufsz
 	my $newBufSZ = <$client>;
