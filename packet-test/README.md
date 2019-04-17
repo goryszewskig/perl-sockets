@@ -60,23 +60,56 @@ Initial Buffer size set to: 4096
 
 ## client.pl
 
-Call with remote_host port buffersize and optionally similuated latency
+Usage for client.pl
+
+```bash
+client.pl
+
+usage:  client.pl address port bufsz latency
+
+client.pl --file <filename> --op-line-len N
+
+  --remote-host  The host were server.pl is running
+  --port         Port number to connect to - default is 4242
+  --local-host   The local IP address to use for the outgoing connection
+  --buffer-size  Size of TCP buffer - default is 8192
+  --latency      Simulate latency in milliseconds - default is 0
+  --h|help       Help
+
+example: client.pl --remote-host 192.168.1.42 --localhost 192.168.1.75 --port 1999 --buffer-size 524288 --latency 24
+
+```
 
 Note: Client and Server cannot run on the same IP address
 
+[Wondershaper](https://github.com/magnific0/wondershaper) was used to throttle the interface associated with 192.168.1.89.
+
+This was to simulate the speed of a slow network connection, such as DSL
+
+as root:
+
 ```bash
-  timeout 5 ./client.pl 192.168.1.116 4242 524288 44
 
-       remote host: 192.168.1.116
+ wondershaper -a enp4s0 -u 56 -d 56
+
+ ```
+
+ Then run the client:
+
+
+```bash
+
+bufsz of 128000 is not a power of 2
+
+       remote host: 192.168.1.105
               port: 4242
-             bufsz: 524288
- simulated latency: 44
+             bufsz: 128000
+ simulated latency: 0
 
-bufsz: 524288
- Send Buffer is 425984 bytes
-Connected to 192.168.1.116 on port 4242
+bufsz: 128000
+ Send Buffer is 2097152 bytes
+Connected to 192.168.1.105 on port 4242
 Sending data...
-Simulating Latency at 44 milliseconds (44000 microseconds)
 
 ```
 
@@ -84,30 +117,24 @@ Output from server:
 
 ```bash
 
-Connection accepted from 192.168.1.105 : 4242
-New Desired Buffer Size set to 524288
+Connection accepted from lestrade3.jks.com : 4242
+New Desired Buffer Size set to 128000
 
-Receive Buffer is 8388608 bytes
-........
+Receive Buffer is 425984 bytes
+......
 
-Start Time: 1555354238.54868
-  End Time: 1555354243.5323
-totElapsed: 4.983623
+Start Time: 1555366187.03162
+  End Time: 1555366199.11529
+totElapsed: 12.083674
 
 
-       Packets Received: 2109
-         Bytes Received: 54525952
-        Avg Packet Size: 25853.94
-  Total Elapsed Seconds:   4.983623
-Network Elapsed Seconds:   4.947538
-   Average milliseconds: 2.345916548
-   Avg milliseconds/MiB: 95.144961538
-
---------------------------------------------------------------------------------
-
-Socket closed - accepting new connections
-```
-
+       Packets Received: 1751
+         Bytes Received: 7140343
+        Avg Packet Size: 4077.87
+  Total Elapsed Seconds:  12.083674
+Network Elapsed Seconds:  12.051402
+   Average milliseconds: 6.882582524
+   Avg milliseconds/MiB: 1769.776452413
 --------------------------------------------------------------------------------
 
 Socket closed - accepting new connections
@@ -121,20 +148,32 @@ This script just runs the client with varying size blocks of data
 >  ./packet-test.sh
 ================================
 packet test with 1024 Bytes
-Send Buffer is 425984 bytes
-Connected to 192.168.157.128 on port 4242
+
+
+       remote host: 192.168.1.56
+              port: 4242
+             bufsz: 1024
+ simulated latency: 5
+
+bufsz: 1024
+ Send Buffer is 425984 bytes
+Connected to 192.168.1.56 on port 4242
+Sending data...
+Simulating Latency at 5 milliseconds (5000 microseconds)
 ================================
 packet test with 2048 Bytes
-Send Buffer is 425984 bytes
-Connected to 192.168.157.128 on port 4242
+
+
+       remote host: 192.168.1.56
+              port: 4242
+             bufsz: 2048
+ simulated latency: 5
 ...
 ```
 
 # Examples of differing bufsz
 
 Although the client is reporting the same buffersize via getsockopt(), the effects of changing bufsz can be seen in the following example:
-
-
 
 
 ```bash
