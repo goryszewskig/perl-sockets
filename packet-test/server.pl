@@ -142,6 +142,7 @@ while(1)
 Network Elapsed Seconds: %10.6f
    Average milliseconds: %3.9f
    Avg milliseconds/MiB: %3.9f
+   Avg Megabytes/Second: %5.1f
 
 },
 	$packets,
@@ -150,7 +151,8 @@ Network Elapsed Seconds: %10.6f
 	$totalElapsed,
 	$sockElapsed,
 	$sockElapsed / $packets  * 1000,
-	$sockElapsed /  ($totalBytes / 2**20)  * 1000
+	$sockElapsed /  ($totalBytes / 2**20)  * 1000,
+	$totalBytes / $sockElapsed / 2**20
 ;
 
 	print "\n", '-'x 80 , "\n";

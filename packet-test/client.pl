@@ -25,6 +25,7 @@ my $help=undef;
 
 GetOptions (
 	"remote-host=s" => \$remoteHost,
+	"file=s" => \$dataFile,
 	"port=i" => \$port,
 	"local-host=s" => \$localHost,
 	"buffer-size=i" => \$bufsz,
@@ -143,6 +144,7 @@ $basename --file <filename> --op-line-len N
   --port         Port number to connect to - default is 4242
   --local-host   The local IP address to use for the outgoing connection
                  Used in conjunction with Wondershaper network speeds can be throttled for testing
+  --file         Test file to transfer
   --buffer-size  Size of TCP buffer - default is 8192
   --latency      Simulate latency in milliseconds - default is 0
   --h|help       Help
