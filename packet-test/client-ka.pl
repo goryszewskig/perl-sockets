@@ -10,7 +10,7 @@ use warnings;
 use strict;
 use IO::Socket::INET;
 use Time::HiRes qw(usleep);
-use Socket qw(SOL_SOCKET SO_SNDBUF SO_KEEPALIVE IPPROTO_IP IP_TTL);
+use Socket qw(SOL_SOCKET SO_SNDBUF SO_KEEPALIVE IPPROTO_IP IP_TTL TCP_KEEPIDLE TCP_KEEPINTVL TCP_KEEPCNT IPPROTO_TCP);
 use Getopt::Long;
 
 
@@ -18,7 +18,7 @@ sub usage;
 
 my $port=4242;
 my $bufsz=8192;
-my $keepAlive=0;
+my ($tcpKeepAlive,$tcpIdle,$tcpInterval,$tcpCount) = (0,0,0,0);
 my ($remoteHost,$localHost) = ('','');
 my $help=undef;
 
@@ -27,7 +27,10 @@ GetOptions (
 	"port=i" => \$port,
 	"local-host=s" => \$localHost,
 	"buffer-size=i" => \$bufsz,
-	"keepalive!" => \$keepAlive,
+	"keepalive!" => \$tcpKeepAlive,
+	"tcp-idle=i" => \$tcpIdle,
+	"tcp-interval=i" => \$tcpInterval,
+	"tcp-count=i" => \$tcpCount,
 	"h|help!" => \$help,
 ) or die usage(1);
 
@@ -72,8 +75,16 @@ my $sock = IO::Socket::INET->new(
 	Reuse => 1
 ) or die "Cannot create socket: $@";
 
+# see IO::Socket for setsockopt perl docs
 $sock->setsockopt(SOL_SOCKET, SO_SNDBUF, $bufsz) or die "setsockopt: $!";
-$sock->setsockopt(SOL_SOCKET, SO_KEEPALIVE, $keepAlive) or die "setsockopt: $!";
+
+if ($tcpKeepAlive) {
+	$sock->setsockopt(SOL_SOCKET, SO_KEEPALIVE, $tcpKeepAlive) or die "setsockopt: $!";
+
+	$sock->setsockopt(IPPROTO_TCP, TCP_KEEPIDLE, $tcpIdle) or die "setsockopt: $!" if $tcpIdle;
+	$sock->setsockopt(IPPROTO_TCP, TCP_KEEPCNT, $tcpCount) or die "setsockopt: $!" if $tcpCount;
+	$sock->setsockopt(IPPROTO_TCP, TCP_KEEPINTVL, $tcpInterval) or die "setsockopt: $!" if $tcpInterval;
+}
 
  
 $SIG{INT} = sub { shutdown $sock,2; close($sock); die "\nkilled\n" };
@@ -132,6 +143,14 @@ $basename --file <filename> --op-line-len N
   --local-host   The local IP address to use for the outgoing connection
                  Used in conjunction with Wondershaper network speeds can be throttled for testing
   --buffer-size  Size of TCP buffer - default is 8192
+  --keepalive    Enable TCP KeepAlive
+  
+  The following default to system values if not specified
+
+  --tcp-idle     Seconds before sending TCP KeepAlive probes - defaults to system values
+  --tcp-interval How often in seconds to resend an unacked KeepAlive probe	-
+  --tcp-count    How many times to resend a KA probe if previous probe was unacked
+
   --h|help       Help
 
 example: $basename --remote-host 192.168.1.42 --localhost 192.168.1.75 --port 1999 --buffer-size 524288 
