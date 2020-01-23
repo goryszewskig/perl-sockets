@@ -37,12 +37,16 @@ GetOptions (
 die usage unless $remoteHost;
 die usage unless $localHost;
 
+if ($help) {
+	usage;
+	exit;
+}
+
 # minimal sanity check for bufsz
 # should not be necessary since now using Getopt::Long, but leaving it in
 unless ( $bufsz =~ /^[[:digit:]]+$/ ) {
 	die "bufsz of $bufsz is not an integer\n";
 }
-
 
 # bufsz really should be a power of 2
 # $log will be an integer if a power of 2
@@ -138,10 +142,9 @@ usage:  $basename address port bufsz
 
 $basename --file <filename> --op-line-len N
 
-  --remote-host  The host were server.pl is running
+  --remote-host  The host or IP were server.pl is running
   --port         Port number to connect to - default is 4242
-  --local-host   The local IP address to use for the outgoing connection
-                 Used in conjunction with Wondershaper network speeds can be throttled for testing
+  --local-host   The local hostname or IP address to use for the outgoing connection
   --buffer-size  Size of TCP buffer - default is 8192
   --keepalive    Enable TCP KeepAlive
   
@@ -160,4 +163,14 @@ example: $basename --remote-host 192.168.1.42 --localhost 192.168.1.75 --port 19
 exit eval { defined($exitVal) ? $exitVal : 0 };
 
 }
+
+
+
+=head1 bufsz
+
+Setting buffer size via --buffer-size is somewhat futile
+
+You can set it, but the value used will be determined by the kernel.
+
+=cut
 
