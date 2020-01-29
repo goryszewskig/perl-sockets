@@ -8,11 +8,30 @@
 
 use warnings;
 use strict;
+no strict qw( subs ); # hack for old perl version
 use IO::Socket::INET;
 use Time::HiRes qw(usleep);
-use Socket qw(SOL_SOCKET SO_SNDBUF SO_KEEPALIVE IPPROTO_IP IP_TTL TCP_KEEPIDLE TCP_KEEPINTVL TCP_KEEPCNT IPPROTO_TCP);
 use Getopt::Long;
 
+BEGIN {
+	eval {
+		require Socket;
+		Socket->import( qw(SOL_SOCKET SO_SNDBUF SO_KEEPALIVE IPPROTO_IP IP_TTL TCP_KEEPIDLE TCP_KEEPINTVL TCP_KEEPCNT IPPROTO_TCP) );
+	};
+	
+	# hack for old perl versions where Socket.pm does not export TCP_KEEP* values
+	if ($@) {
+		
+		warn "Old Perl Version - setting TCP_KEEP constants manually\n";
+
+		# values are found in /usr/include/netinet/tcp.h
+
+		use Socket qw(SOL_SOCKET SO_SNDBUF SO_KEEPALIVE IPPROTO_IP IP_TTL IPPROTO_TCP);
+		*Socket::TCP_KEEPIDLE = sub { 4 };
+		*Socket::TCP_KEEPINTVL = sub { 5 };
+		*Socket::TCP_KEEPCNT = sub { 6 };
+	}
+}
 
 sub usage;
 
@@ -85,9 +104,11 @@ $sock->setsockopt(SOL_SOCKET, SO_SNDBUF, $bufsz) or die "setsockopt: $!";
 if ($tcpKeepAlive) {
 	$sock->setsockopt(SOL_SOCKET, SO_KEEPALIVE, $tcpKeepAlive) or die "setsockopt: $!";
 
-	$sock->setsockopt(IPPROTO_TCP, TCP_KEEPIDLE, $tcpIdle) or die "setsockopt: $!" if $tcpIdle;
-	$sock->setsockopt(IPPROTO_TCP, TCP_KEEPCNT, $tcpCount) or die "setsockopt: $!" if $tcpCount;
-	$sock->setsockopt(IPPROTO_TCP, TCP_KEEPINTVL, $tcpInterval) or die "setsockopt: $!" if $tcpInterval;
+	# specifying 'Socket::' for old perls where these values are not exported
+	# see the BEGIN section at the top
+	$sock->setsockopt(IPPROTO_TCP, Socket::TCP_KEEPIDLE, $tcpIdle) or die "setsockopt: $!" if $tcpIdle;
+	$sock->setsockopt(IPPROTO_TCP, Socket::TCP_KEEPCNT, $tcpCount) or die "setsockopt: $!" if $tcpCount;
+	$sock->setsockopt(IPPROTO_TCP, Socket::TCP_KEEPINTVL, $tcpInterval) or die "setsockopt: $!" if $tcpInterval;
 }
 
  

@@ -20,8 +20,30 @@
 
 use warnings;
 use strict;
+no strict qw( subs ); # hack for old perl version
 use IO::Socket::INET;
-use Socket qw(SOL_SOCKET SO_SNDBUF SO_KEEPALIVE IPPROTO_IP IP_TTL TCP_KEEPIDLE TCP_KEEPINTVL TCP_KEEPCNT IPPROTO_TCP);
+
+BEGIN {
+	eval {
+		require Socket;
+		Socket->import( qw(SOL_SOCKET SO_SNDBUF SO_KEEPALIVE IPPROTO_IP IP_TTL TCP_KEEPIDLE TCP_KEEPINTVL TCP_KEEPCNT IPPROTO_TCP) );
+	};
+	
+	# hack for old perl versions where Socket.pm does not export TCP_KEEP* values
+	if ($@) {
+		
+		warn "Old Perl Version - setting TCP_KEEP constants manually\n";
+
+		# values are found in /usr/include/netinet/tcp.h
+
+		use Socket qw(SOL_SOCKET SO_SNDBUF SO_KEEPALIVE IPPROTO_IP IP_TTL IPPROTO_TCP);
+		*Socket::TCP_KEEPIDLE = sub { 4 };
+		*Socket::TCP_KEEPINTVL = sub { 5 };
+		*Socket::TCP_KEEPCNT = sub { 6 };
+	}
+}
+
+
 use Getopt::Long;
 use Time::HiRes qw(gettimeofday tv_interval);
 #use Data::Dumper;
@@ -87,10 +109,12 @@ if ($tcpKeepAlive) {
 print "TCP KeepAlive settings\n";
 
 print "keepalive: " . $sock->getsockopt(SOL_SOCKET, SO_KEEPALIVE) . "\n";
-print " keepidle: " . $sock->getsockopt(IPPROTO_TCP, TCP_KEEPIDLE) . "\n";
-print "  keepcnt: " . $sock->getsockopt(IPPROTO_TCP, TCP_KEEPCNT) . "\n";
-print "keepintvl: " . $sock->getsockopt(IPPROTO_TCP, TCP_KEEPINTVL) . "\n";
 
+# specifying 'Socket::' for old perls where these values are not exported
+# see the BEGIN section at the top
+print " keepidle: " . $sock->getsockopt(IPPROTO_TCP, Socket::TCP_KEEPIDLE) . "\n";
+print "  keepcnt: " . $sock->getsockopt(IPPROTO_TCP, Socket::TCP_KEEPCNT) . "\n";
+print "keepintvl: " . $sock->getsockopt(IPPROTO_TCP, Socket::TCP_KEEPINTVL) . "\n";
 
 $bufsz =  $sock->getsockopt(SOL_SOCKET, SO_RCVBUF);
 
