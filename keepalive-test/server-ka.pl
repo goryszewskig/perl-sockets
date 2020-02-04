@@ -24,15 +24,21 @@ no strict qw( subs ); # hack for old perl version
 use IO::Socket::INET;
 
 BEGIN {
+	# Note: TCP_USER_TIMEOUT is available as of Linux Kernel 2.6.37 - see 'man tcp'
 	eval {
 		require Socket;
-		Socket->import( qw(SOL_SOCKET SO_SNDBUF SO_KEEPALIVE IPPROTO_IP IP_TTL TCP_KEEPIDLE TCP_KEEPINTVL TCP_KEEPCNT IPPROTO_TCP) );
+		Socket->import( qw(
+			SOL_SOCKET SO_SNDBUF SO_KEEPALIVE IPPROTO_IP 
+			IP_TTL TCP_KEEPIDLE TCP_KEEPINTVL TCP_KEEPCNT 
+			IPPROTO_TCP TCP_USER_TIMEOUT) 
+		);
 	};
 	
-	# hack for old perl versions where Socket.pm does not export TCP_KEEP* values
+	# hack for old versions of Socket.pm that do not have TCP_KEEP* values or TCP_USER_TIMEOUT
 	if ($@) {
 		
 		warn "Old Perl Version - setting TCP_KEEP constants manually\n";
+		warn "Upgrade Socket.pm to correct this\n";
 
 		# values are found in /usr/include/netinet/tcp.h
 
@@ -40,6 +46,7 @@ BEGIN {
 		*Socket::TCP_KEEPIDLE = sub { 4 };
 		*Socket::TCP_KEEPINTVL = sub { 5 };
 		*Socket::TCP_KEEPCNT = sub { 6 };
+		*Socket::TCP_USER_TIMEOUT = sub { 18 };
 	}
 }
 
@@ -52,7 +59,7 @@ sub usage;
 
 my $port=4242;
 my $bufsz=8192;
-my ($tcpKeepAlive,$tcpIdle,$tcpInterval,$tcpCount) = (0,0,0,0);
+my ($tcpKeepAlive,$tcpIdle,$tcpInterval,$tcpCount,$tcpUserTimeout) = (0,0,0,0,0);
 my $localHost = '';
 my $help=undef;
 
@@ -66,6 +73,7 @@ GetOptions (
 	"tcp-idle=i" => \$tcpIdle,
 	"tcp-interval=i" => \$tcpInterval,
 	"tcp-count=i" => \$tcpCount,
+	"tcp-user-timeout=i" => \$tcpUserTimeout,
 	"h|help!" => \$help,
 ) or die usage(1);
 
@@ -106,15 +114,19 @@ if ($tcpKeepAlive) {
 	$sock->setsockopt(IPPROTO_TCP, TCP_KEEPINTVL, $tcpInterval) or die "setsockopt: $!" if $tcpInterval;
 }
 
+# default is 0
+$sock->setsockopt(IPPROTO_TCP, TCP_USER_TIMEOUT, $tcpUserTimeout) or die "setsockopt: $!";
+
 print "TCP KeepAlive settings\n";
 
 print "keepalive: " . $sock->getsockopt(SOL_SOCKET, SO_KEEPALIVE) . "\n";
 
 # specifying 'Socket::' for old perls where these values are not exported
 # see the BEGIN section at the top
-print " keepidle: " . $sock->getsockopt(IPPROTO_TCP, Socket::TCP_KEEPIDLE) . "\n";
-print "  keepcnt: " . $sock->getsockopt(IPPROTO_TCP, Socket::TCP_KEEPCNT) . "\n";
-print "keepintvl: " . $sock->getsockopt(IPPROTO_TCP, Socket::TCP_KEEPINTVL) . "\n";
+print "   keepidle: " . $sock->getsockopt(IPPROTO_TCP, Socket::TCP_KEEPIDLE) . "\n";
+print "    keepcnt: " . $sock->getsockopt(IPPROTO_TCP, Socket::TCP_KEEPCNT) . "\n";
+print "  keepintvl: " . $sock->getsockopt(IPPROTO_TCP, Socket::TCP_KEEPINTVL) . "\n";
+print "TCP Timeout: " . $sock->getsockopt(IPPROTO_TCP, Socket::TCP_USER_TIMEOUT) . "\n";
 
 $bufsz =  $sock->getsockopt(SOL_SOCKET, SO_RCVBUF);
 
@@ -192,9 +204,10 @@ $basename --file <filename> --op-line-len N
   
   The following default to system values if not specified
 
-  --tcp-idle     Seconds before sending TCP KeepAlive probes - defaults to system values
-  --tcp-interval How often in seconds to resend an unacked KeepAlive probe	-
-  --tcp-count    How many times to resend a KA probe if previous probe was unacked
+  --tcp-idle          Seconds before sending TCP KeepAlive probes - defaults to system values
+  --tcp-interval      How often in seconds to resend an unacked KeepAlive probe	-
+  --tcp-count         How many times to resend a KA probe if previous probe was unacked
+  --tcp-user-timeout  Time in milliseconds to allow for peer response (man tcp for more)
 
   --h|help       Help
 

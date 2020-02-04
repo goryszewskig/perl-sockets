@@ -10,13 +10,17 @@ use warnings;
 use strict;
 no strict qw( subs ); # hack for old perl version
 use IO::Socket::INET;
-use Time::HiRes qw(usleep);
+use Time::HiRes qw(usleep gettimeofday tv_interval);
 use Getopt::Long;
 
 BEGIN {
+	# Note: TCP_USER_TIMEOUT is available as of Linux Kernel 2.6.37 - see 'man tcp'
 	eval {
 		require Socket;
-		Socket->import( qw(SOL_SOCKET SO_SNDBUF SO_KEEPALIVE IPPROTO_IP IP_TTL TCP_KEEPIDLE TCP_KEEPINTVL TCP_KEEPCNT IPPROTO_TCP) );
+		Socket->import( qw(
+			SOL_SOCKET SO_SNDBUF SO_KEEPALIVE IPPROTO_IP 
+			IP_TTL TCP_KEEPIDLE TCP_KEEPINTVL TCP_KEEPCNT 
+			IPPROTO_TCP TCP_USER_TIMEOUT) );
 	};
 	
 	# hack for old perl versions where Socket.pm does not export TCP_KEEP* values
@@ -30,6 +34,7 @@ BEGIN {
 		*Socket::TCP_KEEPIDLE = sub { 4 };
 		*Socket::TCP_KEEPINTVL = sub { 5 };
 		*Socket::TCP_KEEPCNT = sub { 6 };
+		*Socket::TCP_USER_TIMEOUT = sub { 18 };
 	}
 }
 
@@ -37,7 +42,7 @@ sub usage;
 
 my $port=4242;
 my $bufsz=8192;
-my ($tcpKeepAlive,$tcpIdle,$tcpInterval,$tcpCount) = (0,0,0,0);
+my ($tcpKeepAlive,$tcpIdle,$tcpInterval,$tcpCount,$tcpUserTimeout) = (0,0,0,0,0);
 my ($remoteHost,$localHost) = ('','');
 my $help=undef;
 
@@ -50,6 +55,7 @@ GetOptions (
 	"tcp-idle=i" => \$tcpIdle,
 	"tcp-interval=i" => \$tcpInterval,
 	"tcp-count=i" => \$tcpCount,
+	"tcp-user-timeout=i" => \$tcpUserTimeout,
 	"h|help!" => \$help,
 ) or die usage(1);
 
@@ -111,6 +117,15 @@ if ($tcpKeepAlive) {
 	$sock->setsockopt(IPPROTO_TCP, Socket::TCP_KEEPINTVL, $tcpInterval) or die "setsockopt: $!" if $tcpInterval;
 }
 
+# default is 0
+$sock->setsockopt(IPPROTO_TCP, TCP_USER_TIMEOUT, $tcpUserTimeout) or die "setsockopt: $!";
+
+# specifying 'Socket::' for old perls where these values are not exported
+# see the BEGIN section at the top
+print "   keepidle: " . $sock->getsockopt(IPPROTO_TCP, Socket::TCP_KEEPIDLE) . "\n";
+print "    keepcnt: " . $sock->getsockopt(IPPROTO_TCP, Socket::TCP_KEEPCNT) . "\n";
+print "  keepintvl: " . $sock->getsockopt(IPPROTO_TCP, Socket::TCP_KEEPINTVL) . "\n";
+print "TCP Timeout: " . $sock->getsockopt(IPPROTO_TCP, Socket::TCP_USER_TIMEOUT) . "\n";
  
 $SIG{INT} = sub { shutdown $sock,2; close($sock); die "\nkilled\n" };
 
@@ -118,12 +133,17 @@ $SIG{INT} = sub { shutdown $sock,2; close($sock); die "\nkilled\n" };
 my $iaddr = inet_aton($remoteHost) or die "Unable to resolve hostname : $remoteHost";
 my $paddr = sockaddr_in($port, $iaddr);    #socket address structure
  
+startTimer('timing socket connect');
 connect($sock , $paddr) or die "connect failed : $!";
+endTimer(); printElapsed();
+
 print "Connected to $remoteHost on port $port\n";
 binmode $sock, ':bytes';
 
 print " Send Buffer is ", $sock->getsockopt(SOL_SOCKET, SO_SNDBUF), " bytes\n";
 print " Client KeepAlive is ", $sock->getsockopt(SOL_SOCKET, SO_KEEPALIVE), "\n";
+print "TCP Timeout: " . $sock->getsockopt(IPPROTO_TCP, Socket::TCP_USER_TIMEOUT) . "\n";
+
 print "Connected...\n";
 
 # use sysdread to get requested buffer size
@@ -131,7 +151,9 @@ print "Connected...\n";
 # use $datasz for debugging
 # cli parameter is milliseconds - usleep uses microseconds
 
+startTimer('timing sock syswrite');
 my $bytesWritten =  syswrite($sock, 'test', $bufsz); 
+endTimer(); printElapsed();
 
 print qq{
 
@@ -142,14 +164,46 @@ Press ENTER to complete
 my $response = <STDIN>;
 
 $bytesWritten =  syswrite($sock, 'END', $bufsz); 
+
+unless ($bytesWritten) {
+	print "Failed to write - $bytesWritten\n";
+}
  
 # Does not work as expected - socket is still open - see Reuse in socket creation
 $sock->setsockopt(SOL_SOCKET, SO_LINGER, pack('II',1,10)) or die "setsockopt: $!";
 
-shutdown $sock,2;
+my $shutResult=shutdown $sock,2;
+unless ($shutResult) {
+	print "Shutdown failed with $shutResult\n";
+}
 close($sock) or die "cannot close socket - $@\n";
 exit;
 
+
+{
+
+	use constant START_TIMER => 0;
+	use constant END_TIMER => 1;
+
+	my @times=();
+
+	sub startTimer {
+		my $msg = shift;
+		$msg = 'Timing Unknown Operation' unless $msg;
+		print "$msg\n";
+		($times[START_TIMER]) = [gettimeofday];
+	}
+
+	sub endTimer {
+		($times[END_TIMER]) = [gettimeofday];
+	}
+
+	# just assuming that Start and End were called properly
+	sub printElapsed {
+		printf "Elapsed: %3.4f\n", tv_interval($times[START_TIMER], $times[END_TIMER]);
+	}
+
+}
 
 sub usage {
 

@@ -1,0 +1,7 @@
+
+this is on server japp, which is Oracle Linux 5.9
+
+The code comes from  https://github.com/anguslee/sock
+
+I was able to build the code on Linux 5.9, but not on Ubuntu
+
