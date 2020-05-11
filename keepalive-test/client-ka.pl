@@ -122,12 +122,14 @@ $sock->setsockopt(IPPROTO_TCP, TCP_USER_TIMEOUT, $tcpUserTimeout) or die "setsoc
 
 # specifying 'Socket::' for old perls where these values are not exported
 # see the BEGIN section at the top
+print "  keepalive: " . $sock->getsockopt(IPPROTO_TCP, Socket::SO_KEEPALIVE) . "\n";
 print "   keepidle: " . $sock->getsockopt(IPPROTO_TCP, Socket::TCP_KEEPIDLE) . "\n";
 print "    keepcnt: " . $sock->getsockopt(IPPROTO_TCP, Socket::TCP_KEEPCNT) . "\n";
 print "  keepintvl: " . $sock->getsockopt(IPPROTO_TCP, Socket::TCP_KEEPINTVL) . "\n";
 print "TCP Timeout: " . $sock->getsockopt(IPPROTO_TCP, Socket::TCP_USER_TIMEOUT) . "\n";
  
 $SIG{INT} = sub { shutdown $sock,2; close($sock); die "\nkilled\n" };
+$SIG{QUIT} = sub { print "\nquit\n"; exit 0 };
 
 # connect to remote server
 my $iaddr = inet_aton($remoteHost) or die "Unable to resolve hostname : $remoteHost";
@@ -225,9 +227,10 @@ $basename --file <filename> --op-line-len N
   
   The following default to system values if not specified
 
-  --tcp-idle     Seconds before sending TCP KeepAlive probes - defaults to system values
-  --tcp-interval How often in seconds to resend an unacked KeepAlive probe	-
-  --tcp-count    How many times to resend a KA probe if previous probe was unacked
+  --tcp-idle         Seconds before sending TCP KeepAlive probes - defaults to system values
+  --tcp-interval     How often in seconds to resend an unacked KeepAlive probe	-
+  --tcp-count        How many times to resend a KA probe if previous probe was unacked
+  --tcp-user-timeout Time in milliseconds to allow for peer response (man tcp for more)
 
   --h|help       Help
 
