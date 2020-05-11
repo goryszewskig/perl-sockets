@@ -18,6 +18,7 @@ use Time::HiRes qw(gettimeofday tv_interval);
 
 my $port = 4242;
 my $reportInterval = 256;  # print '.' every N packets received
+my $displayReport = 0;  # set to 0 to disable reporting
 
 # now setting bufsz dynamically via message from the client
 # so this bit is not really necessary - leaving it here for now though
@@ -50,6 +51,7 @@ $| = 1; # flush stdout
 my $proto = getprotobyname('tcp');    #get the tcp protocol
  
 my $sock = IO::Socket::INET->new(
+	#LocalAddr => '192.168.1.255', # uncomment and edit adddress if needed
 	LocalPort => $port, 
 	Proto => $proto, 
 	Listen  => 1, 
@@ -94,8 +96,7 @@ while(1)
 	$sock->setsockopt(SOL_SOCKET, SO_RCVBUF, $newBufSZ) or
 		die "setsockopt: $!";
 
-	print "Receive Buffer is ", $sock->getsockopt(SOL_SOCKET, SO_RCVBUF),
-		" bytes\n";
+	print "Receive Buffer is ", $sock->getsockopt(SOL_SOCKET, SO_RCVBUF), " bytes\n";
 
 	chomp $newBufSZ;
 	
@@ -113,7 +114,7 @@ while(1)
 		$packets++;
 
 		#printf "%4.6f\n", $rcvtim;
-		print '.' unless $packets%$reportInterval;
+		if ($displayReport) {print '.' unless $packets%$reportInterval;} ;
 
 		# needs to be the last line in the loop`
 		$t0 = [gettimeofday];
