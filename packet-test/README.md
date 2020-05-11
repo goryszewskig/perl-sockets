@@ -367,32 +367,16 @@ Socket closed - accepting new connections
 
 ## packet-driver.sh
 
-Assuming there are multiple interfaces setup for testing different MTU sizes
+Assuming there are multiple interfaces setup for testing different MTU sizes.
 
-```bash
-#!/usr/bin/env bash
+Call this to run a test multiple times, currently runs the tests 23 times
 
-declare -A localHosts
-declare -A remoteHosts
+Call with 1500 or 9000 for the MTU size
 
-localHosts[9000]=192.168.154.4
-localHosts[1500]=192.168.199.35
-
-remoteHosts[9000]=192.168.154.5
-remoteHosts[1500]=192.168.199.36
-
-blocksize=8192
-testfile=testdata-1G.dat
-
-mtu=9000
-
-for i in {0..22}
-do
-   cmd="./client.pl --remote-host ${remoteHosts[$mtu]} --local-host ${localHosts[$mtu]} --file $testfile --buffer-size $blocksize"
-   echo "executing: $cmd"
-   $cmd
-done
-
+```text
+# ./packet-driver.sh  900
+900
+Please use 1500 or 9000
 ```
 
 ## packet-averages.pl
@@ -421,7 +405,5 @@ key/avg:    Avg milliseconds/MiB          5.818500
 key/avg:   Total Elapsed Seconds          6.850447
 key/avg: Network Elapsed Seconds          5.958098
 ```
-
-
 
 
