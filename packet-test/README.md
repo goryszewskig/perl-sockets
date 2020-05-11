@@ -365,4 +365,63 @@ Socket closed - accepting new connections
 
 ```
 
+## packet-driver.sh
+
+Assuming there are multiple interfaces setup for testing different MTU sizes
+
+```bash
+#!/usr/bin/env bash
+
+declare -A localHosts
+declare -A remoteHosts
+
+localHosts[9000]=192.168.154.4
+localHosts[1500]=192.168.199.35
+
+remoteHosts[9000]=192.168.154.5
+remoteHosts[1500]=192.168.199.36
+
+blocksize=8192
+testfile=testdata-1G.dat
+
+mtu=9000
+
+for i in {0..22}
+do
+   cmd="./client.pl --remote-host ${remoteHosts[$mtu]} --local-host ${localHosts[$mtu]} --file $testfile --buffer-size $blocksize"
+   echo "executing: $cmd"
+   $cmd
+done
+
+```
+
+## packet-averages.pl
+
+You may wish to run several tests and get some averages from the server side.
+
+Start the server like this:
+
+```bash
+$ ./server.pl | tee mtu-9000.log
+```
+
+Then the client in a loop via `packet-driver.sh`.
+
+
+Then get the averages from the resulting log file on the server side:
+
+```text
+root@ubuntu-mule-02# ./packet-averages.pl < mtu-1500.log
+key/avg:          Bytes Received 1073733637.000000
+key/avg:         Avg Packet Size       7898.147391
+key/avg:        Packets Received     135948.304348
+key/avg:    Average milliseconds          0.043824
+key/avg:    Avg Megabytes/Second        172.000000
+key/avg:    Avg milliseconds/MiB          5.818500
+key/avg:   Total Elapsed Seconds          6.850447
+key/avg: Network Elapsed Seconds          5.958098
+```
+
+
+
 
